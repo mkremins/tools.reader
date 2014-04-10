@@ -21,8 +21,6 @@
             [cljs.tools.reader.impl.commons
              :refer [number-literal? read-past parse-symbol match-number
                      read-comment throwing-reader read-regex]])
-  (:require-macros [cljs.tools.reader.reader-types-macros
-                    :refer [log-source log-source-unread]])
   (:import [goog.string StringBuffer]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -159,8 +157,7 @@
         (if (identical? delim (char ch))
           (persistent! a)
           (if-let [macrofn (macros ch)]
-            (let [mret (log-source-unread rdr
-                         (macrofn rdr ch))]
+            (let [mret (macrofn rdr ch)]
               (recur (if-not (identical? mret rdr) (conj! a mret) a)))
             (let [o (read (doto rdr (unread ch)) true nil recursive?)]
               (recur (if-not (identical? o rdr) (conj! a o) a)))))
@@ -317,23 +314,22 @@
 
 (defn- read-meta
   [rdr _]
-  (log-source rdr
-    (let [[line column] (when (indexing-reader? rdr)
-                          [(get-line-number rdr) (int (dec (get-column-number rdr)))])
-          m (desugar-meta (read rdr true nil true))]
-      (when-not (map? m)
-        (reader-error rdr "Metadata must be Symbol, Keyword, String or Map"))
-      (let [o (read rdr true nil true)]
-        (if (instance? IMeta o)
-          (let [m (if (and line
-                           (seq? o))
-                    (assoc m :line line
-                           :column column)
-                    m)]
-            (if (meta o)
-              (with-meta o (merge (meta o) m))
-              (reset-meta! o m)))
-          (reader-error rdr "Metadata can only be applied to IMetas"))))))
+  (let [[line column] (when (indexing-reader? rdr)
+                        [(get-line-number rdr) (int (dec (get-column-number rdr)))])
+        m (desugar-meta (read rdr true nil true))]
+    (when-not (map? m)
+      (reader-error rdr "Metadata must be Symbol, Keyword, String or Map"))
+    (let [o (read rdr true nil true)]
+      (if (instance? IMeta o)
+        (let [m (if (and line
+                         (seq? o))
+                  (assoc m :line line
+                         :column column)
+                  m)]
+          (if (meta o)
+            (with-meta o (merge (meta o) m))
+            (reset-meta! o m)))
+        (reader-error rdr "Metadata can only be applied to IMetas")))))
 
 (defn- read-set
   [rdr _]
@@ -512,7 +508,7 @@
   {})
 
 (defn read
-  "Reads the first object from an IPushbackReader or a java.io.PushbackReader.
+  "Reads the first object from an IPushbackReader.
    Returns the object read. If EOF, throws if eof-error? is true.
    Otherwise returns sentinel.
 
@@ -531,20 +527,19 @@
        (reader-error "Reading disallowed - *read-eval* bound to :unknown"))
      (try
        (loop []
-         (log-source reader
-           (let [ch (read-char reader)]
-             (cond
-              (whitespace? ch) (recur)
-              (nil? ch) (if eof-error? (reader-error reader "EOF") sentinel)
-              (number-literal? reader ch) (read-number reader ch)
-              (comment-prefix? ch) (do (read-comment reader) (recur))
-              :else (let [f (macros ch)]
-                      (if f
-                        (let [res (f reader ch)]
-                          (if (identical? res reader)
-                            (recur)
-                            res))
-                        (read-symbol reader ch)))))))
+         (let [ch (read-char reader)]
+           (cond
+            (whitespace? ch) (recur)
+            (nil? ch) (if eof-error? (reader-error reader "EOF") sentinel)
+            (number-literal? reader ch) (read-number reader ch)
+            (comment-prefix? ch) (do (read-comment reader) (recur))
+            :else (let [f (macros ch)]
+                    (if f
+                      (let [res (f reader ch)]
+                        (if (identical? res reader)
+                          (recur)
+                          res))
+                      (read-symbol reader ch))))))
        (catch js/Error e
          (throw (ex-info (.-message e)
                          (merge {:type :reader-exception}

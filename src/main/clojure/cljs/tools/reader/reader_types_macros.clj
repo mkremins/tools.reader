@@ -10,21 +10,3 @@
 
 (defmacro update! [what f]
   (list 'set! what (list f what)))
-
-(defmacro log-source
-  "If reader implements SourceLoggingReader, execute body in a source
-  logging context. Otherwise, execute body, returning the result."
-  [reader & body]
-  `(if (and (source-logging-reader? ~reader)
-            (not (whitespace? (peek-char ~reader))))
-     (log-source* ~reader (^{:once true} fn* [] ~@body) false)
-     (do ~@body)))
-
-(defmacro log-source-unread
-  "If reader implements SourceLoggingReader, execute body in a source
-  logging context. Otherwise, execute body, returning the result."
-  [reader & body]
-  `(if (and (source-logging-reader? ~reader)
-            (not (whitespace? (peek-char ~reader))))
-     (log-source* ~reader (^{:once true} fn* [] ~@body) true)
-     (do ~@body)))

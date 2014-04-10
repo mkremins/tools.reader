@@ -52,26 +52,8 @@
     (when (> s-len s-pos)
       (nth s s-pos))))
 
-(deftype InputStreamReader [^InputStream is ^:unsynchronized-mutable ^"[B" buf]
-  Reader
-  (read-char [reader]
-    (if buf
-      (let [c (aget buf 0)]
-        (set! buf nil)
-        (char c))
-      (let [c (.read is)]
-        (when (>= c 0)
-          (char c)))))
-  (peek-char [reader]
-    (when-not buf
-      (set! buf (js/Array. 1))
-      (when (== -1 (.read is buf))
-        (set! buf nil)))
-    (when buf
-      (char (aget buf 0)))))
-
 (deftype PushbackReader
-    [rdr ^"[Ljava.lang.Object;" buf buf-len ^:unsynchronized-mutable buf-pos]
+    [rdr buf buf-len ^:unsynchronized-mutable buf-pos]
   Reader
   (read-char [reader]
     (char
@@ -134,23 +116,6 @@
   (get-line-number [reader] (int (inc line)))
   (get-column-number [reader] (int column))
   (get-file-name [reader] file-name))
-
-(extend-type java.io.PushbackReader
-  Reader
-  (read-char [rdr]
-    (let [c (.read ^java.io.PushbackReader rdr)]
-      (when (>= c 0)
-        (normalize-newline rdr (char c)))))
-
-  (peek-char [rdr]
-    (when-let [c (read-char rdr)]
-      (unread rdr c)
-      c))
-
-  IPushbackReader
-  (unread [rdr c]
-    (when c
-      (.unread ^java.io.PushbackReader rdr (int c)))))
 
 (deftype LineNumberingPushbackReader []
   IndexingReader
@@ -246,11 +211,10 @@ logging frames. Called when pushing a character back."
 (defn indexing-reader?
   "Returns true if the reader satisfies IndexingReader"
   [rdr]
-  (or (instance? IndexingReader rdr)
+  (or (satisfies? IndexingReader rdr)
       (instance? LineNumberingPushbackReader rdr)
-      (and (not (instance? PushbackReader rdr))
+      (and (not (satisfies? PushbackReader rdr))
            (not (instance? StringReader rdr))
-           (not (instance? InputStreamReader rdr))
            (get (:impls IndexingReader) (type rdr)))))
 
 (defn string-reader
@@ -264,18 +228,6 @@ logging frames. Called when pushing a character back."
      (string-push-back-reader s 1))
   ([^String s buf-len]
      (PushbackReader. (string-reader s) (object-array buf-len) buf-len buf-len)))
-
-(defn input-stream-reader
-  "Creates an InputStreamReader from an InputStream"
-  [is]
-  (InputStreamReader. is nil))
-
-(defn input-stream-push-back-reader
-  "Creates a PushbackReader from a given InputStream"
-  ([is]
-     (input-stream-push-back-reader is 1))
-  ([^InputStream is buf-len]
-     (PushbackReader. (input-stream-reader is) (object-array buf-len) buf-len buf-len)))
 
 (defn indexing-push-back-reader
   "Creates an IndexingPushbackReader from a given string or Reader"
