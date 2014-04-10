@@ -10,12 +10,14 @@
   :repositories {"sonatype-oss-public" "https://oss.sonatype.org/content/groups/public/"}
   :dependencies [[org.clojure/clojure "1.6.0"]
                  [org.clojure/clojurescript "0.0-2202"]]
-  :plugins [[lein-cljsbuild "1.0.3"]]
+  :plugins [[lein-cljsbuild "1.0.3"]
+            [com.cemerick/clojurescript.test "0.3.0"]]
   :cljsbuild {:builds [{:id "simple"
-                        :source-paths ["src/main/clojure/cljs"]
+                        :source-paths ["src/test/clojure/cljs" "src/main/clojure/cljs"]
                         :compiler {:optimizations :simple
                                    :pretty-print true
-                                   :output-to "tests.js"}}]}
+                                   :output-to "tests.js"}}]
+              :test-commands {"unit-tests" ["node" :node-runner "tests.js"]}}
   :profiles {:1.3 {:dependencies [[org.clojure/clojure "1.3.0"]]}
              :1.4 {:dependencies [[org.clojure/clojure "1.4.0"]]}
              :1.5 {:dependencies [[org.clojure/clojure "1.5.1"]]}
