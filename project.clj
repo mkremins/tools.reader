@@ -16,8 +16,7 @@
                         :source-paths ["src/test/clojure/cljs" "src/main/clojure/cljs"]
                         :compiler {:optimizations :simple
                                    :pretty-print true
-                                   :output-to "tests.js"}}]
-              :test-commands {"unit-tests" ["node" :node-runner "tests.js"]}}
+                                   :output-to "tests.js"}}]}
   :profiles {:1.3 {:dependencies [[org.clojure/clojure "1.3.0"]]}
              :1.4 {:dependencies [[org.clojure/clojure "1.4.0"]]}
              :1.5 {:dependencies [[org.clojure/clojure "1.5.1"]]}
